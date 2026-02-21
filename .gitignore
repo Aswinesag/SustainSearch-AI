@@ -1,0 +1,15 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+.env
+data/raw/
+data/cleaned/
+vector_db/
+
+# Next.js
+sustain-search-ui/.next/
+sustain-search-ui/node_modules/
+sustain-search-ui/out/
+sustain-search-ui/build/
+sustain-search-ui/.DS_Store
