@@ -176,5 +176,6 @@ def search(
 
 if __name__ == "__main__":
     import uvicorn
-    print("🚀 API is live at http://localhost:8000")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.environ.get("PORT", 7860))
+    print(f"🚀 API is live at http://0.0.0.0:{port}")
+    uvicorn.run(app, host="0.0.0.0", port=port)

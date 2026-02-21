@@ -4,7 +4,7 @@ This guide deploys SustainSearch AI at **zero cost** using:
 
 | Service | Role | Free Tier |
 |---|---|---|
-| [Render.com](https://render.com) | FastAPI backend | 750 hrs/month, 512 MB RAM |
+| [Hugging Face Spaces](https://huggingface.co/spaces) | FastAPI backend | 16 GB RAM, 2 vCPU, Docker |
 | [Vercel](https://vercel.com) | Next.js frontend | Unlimited for hobby projects |
 
 > **Total cost: $0/month**
@@ -13,7 +13,7 @@ This guide deploys SustainSearch AI at **zero cost** using:
 
 ## ⚠️ Before You Start
 
-Make sure the following are committed to your GitHub repo:
+Make sure the following files are committed to your GitHub repo:
 
 ```
 sustain-search/
@@ -21,12 +21,12 @@ sustain-search/
 ├── ingest_and_clean.py
 ├── build_ai_index.py
 ├── requirements.txt
-├── render.yaml                       ← Render build config
-├── climate_headlines_sentiment.csv   ← must be committed (not gitignored)
-└── sustain-search-ui/                ← entire UI folder (no nested .git)
+├── Dockerfile                        ← HF Spaces Docker config
+├── climate_headlines_sentiment.csv   ← source data (must be committed)
+├── README.md
+├── DEPLOY.md
+└── sustain-search-ui/
 ```
-
-> `vector_db/` and `data/cleaned/` are gitignored — Render will **rebuild the index automatically** on every deploy via the build command in `render.yaml`.
 
 Push everything to GitHub first:
 
@@ -38,38 +38,76 @@ git push origin main
 
 ---
 
-## Part 1 — Deploy the Backend to Render.com
+## Part 1 — Deploy the Backend to Hugging Face Spaces
 
-### Step 1 — Create a Render account
+HF Spaces is the best free platform for ML workloads — 16 GB RAM vs Render's 512 MB.
+The `Dockerfile` builds the ChromaDB index at image build time, so the container starts quickly.
 
-Sign up at [render.com](https://render.com) (free, no credit card required).
+### Step 1 — Create a Hugging Face account
 
-### Step 2 — New Web Service
+Sign up at [huggingface.co](https://huggingface.co) (free).
 
-1. Dashboard → **New** → **Web Service**
-2. Connect your GitHub account and select your repository
-3. Render will auto-detect `render.yaml` — click **Continue**
+### Step 2 — Create a new Space
 
-### Step 3 — Verify the build settings
+1. Go to [huggingface.co/new-space](https://huggingface.co/new-space)
+2. Fill in the details:
 
-Render reads these from `render.yaml`, but double-check they're correct:
-
-| Setting | Value |
+| Field | Value |
 |---|---|
-| **Environment** | Python |
-| **Build Command** | `pip install -r requirements.txt && python ingest_and_clean.py climate_headlines_sentiment.csv && python build_ai_index.py` |
-| **Start Command** | `python app.py` |
-| **Instance Type** | Free |
+| **Space name** | `sustain-search-api` |
+| **SDK** | **Docker** |
+| **Visibility** | Public |
 
-> 🕐 **First build takes 5–10 minutes** — the sentence-transformer model (~90 MB) must be downloaded and the entire dataset embedded on first deploy.
+3. Click **Create Space**
 
-### Step 4 — Copy your backend URL
+### Step 3 — Push your backend code to the Space
 
-Once the deploy succeeds, Render gives you a URL like:
+HF Spaces uses a git repo. Add it as a remote:
+
+```bash
+# In d:\sustain-search
+git remote add space https://huggingface.co/spaces/YOUR_USERNAME/sustain-search-api
+
+# Push only backend files (not the UI folder)
+git subtree push --prefix=. space main
 ```
-https://sustain-search-api.onrender.com
+
+> Replace `YOUR_USERNAME` with your HF username.
+
+**Or (simpler):** Clone the Space repo separately, copy your backend files in, and push:
+
+```bash
+git clone https://huggingface.co/spaces/YOUR_USERNAME/sustain-search-api hf-space
+cd hf-space
+
+# Copy backend files
+copy ..\sustain-search\app.py .
+copy ..\sustain-search\ingest_and_clean.py .
+copy ..\sustain-search\build_ai_index.py .
+copy ..\sustain-search\requirements.txt .
+copy ..\sustain-search\Dockerfile .
+copy "..\sustain-search\climate_headlines_sentiment.csv" .
+
+git add .
+git commit -m "deploy: SustainSearch AI backend"
+git push
 ```
-**Copy this — you'll need it for the frontend.**
+
+### Step 4 — Wait for the build
+
+HF Spaces will:
+1. Build the Docker image (~10–15 min first time — model download + full dataset indexing)
+2. Start the container on port 7860
+
+Your API URL will be:
+```
+https://YOUR_USERNAME-sustain-search-api.hf.space
+```
+
+Test it:
+```
+https://YOUR_USERNAME-sustain-search-api.hf.space/docs
+```
 
 ---
 
@@ -79,45 +117,23 @@ https://sustain-search-api.onrender.com
 
 Sign up at [vercel.com](https://vercel.com) with your GitHub account (free).
 
-### Step 2 — Update the API base URL
+### Step 2 — Add the API URL to Vercel
 
-Before deploying, update the API URL in the frontend to point to your Render backend instead of `localhost`.
+Before deploying, you need to tell the frontend where the backend lives.
 
-Open `sustain-search-ui/src/app/page.tsx` and find this line inside `handleSearch`:
+In Vercel → your project → **Settings** → **Environment Variables**, add:
 
-```ts
-// Before (local development)
-const url = `http://localhost:8000/search?...`
-
-// After (production) — replace with your actual Render URL
-const url = `https://sustain-search-api.onrender.com/search?...`
 ```
-
-Save, commit, and push:
-
-```bash
-git add sustain-search-ui/src/app/page.tsx
-git commit -m "chore: point frontend to Render backend URL"
-git push origin main
+NEXT_PUBLIC_API_URL = https://YOUR_USERNAME-sustain-search-api.hf.space
 ```
 
 ### Step 3 — Import project on Vercel
 
-1. [vercel.com/new](https://vercel.com/new) → **Import Git Repository**
-2. Select your repo
-3. Set the **Root Directory** to `sustain-search-ui`
-4. Leave all other settings as default — Vercel auto-detects Next.js
+1. [vercel.com/new](https://vercel.com/new) → **Import Git Repository** → select your GitHub repo
+2. Set **Root Directory** to `sustain-search-ui`
+3. Click **Deploy** — live in ~1 minute
 
-| Setting | Value |
-|---|---|
-| **Framework** | Next.js (auto-detected) |
-| **Root Directory** | `sustain-search-ui` |
-| **Build Command** | `npm run build` (default) |
-| **Output Directory** | `.next` (default) |
-
-5. Click **Deploy** — done in ~1 minute
-
-Your live URL will be:
+Your live URL:
 ```
 https://sustain-search-ui.vercel.app
 ```
@@ -126,54 +142,34 @@ https://sustain-search-ui.vercel.app
 
 ## Part 3 — Test the Live App
 
-Open your Vercel URL and try a search. If you get a network error, check:
-
-1. **Backend is awake** — Render free tier **sleeps after 15 minutes of inactivity**. The first request after sleep takes ~30 seconds to wake up. Visit `https://sustain-search-api.onrender.com/docs` directly to wake it.
-2. **CORS** — `app.py` already allows all origins (`allow_origins=["*"]`), so this should not be an issue.
-3. **Build logs** — Check Render's "Logs" tab to confirm the index was built successfully.
-
----
-
-## 🔁 Keeping It Free — Tips & Limits
-
-| Limit | Detail |
+| Check | URL |
 |---|---|
-| Render free tier sleeps | After 15 min idle; first request takes ~30s to wake |
-| 750 hrs/month | ~1 service running continuously — enough for 1 backend |
-| 512 MB RAM | Sufficient for this stack (model + BM25 + ChromaDB) |
-| Vercel hobby | Unlimited bandwidth, no sleep, perfect for static/SSR |
-| Rebuild on redeploy | Every Render deploy re-ingests & re-embeds (~5–10 min) |
+| Backend API docs | `https://YOUR_USERNAME-sustain-search-api.hf.space/docs` |
+| Test search endpoint | `https://YOUR_USERNAME-sustain-search-api.hf.space/search?q=climate&mode=hybrid` |
+| Frontend | `https://your-app.vercel.app` |
 
 ---
 
-## 🌐 Optional: Use an Environment Variable for the API URL
+## Free Tier Comparison
 
-Instead of hardcoding the Render URL in `page.tsx`, use a Next.js environment variable so you can switch between local and production easily.
-
-**`sustain-search-ui/.env.local`** (for local dev, don't commit):
-```env
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
-
-**In Vercel** → Settings → Environment Variables:
-```
-NEXT_PUBLIC_API_URL = https://sustain-search-api.onrender.com
-```
-
-**`page.tsx`** — replace the hardcoded URL with:
-```ts
-const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-const url  = `${base}/search?q=${encodeURIComponent(query)}&mode=${mode}&sentiment_filter=${sentimentFilter}&limit=8`;
-```
-
-This way, local dev uses `localhost` and production automatically uses Render — no code changes needed per environment.
+| Platform | RAM | Sleep? | Best For |
+|---|---|---|---|
+| **HF Spaces** ✅ | 16 GB | No (public spaces stay up) | ML backends |
+| Render | 512 MB | Yes (15 min idle) | Lightweight APIs |
+| Railway | 512 MB | No | General web apps |
+| Vercel | Serverless | N/A | Next.js frontends |
 
 ---
 
-## Summary
+## Local Development
 
-```
-GitHub repo
-    ├── Render.com  →  builds index + runs FastAPI  →  https://your-app.onrender.com
-    └── Vercel      →  serves Next.js UI            →  https://your-app.vercel.app
+Everything still works locally — the env var falls back to `localhost:8000`:
+
+```bash
+# Backend (d:\sustain-search)
+venv\Scripts\activate
+python app.py          # → http://localhost:7860
+
+# Frontend (d:\sustain-search\sustain-search-ui)
+npm run dev            # → http://localhost:3000
 ```
