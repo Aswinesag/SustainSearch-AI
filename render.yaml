@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: sustain-search-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt && python ingest_and_clean.py climate_headlines_sentiment.csv && python build_ai_index.py
+    startCommand: python app.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0

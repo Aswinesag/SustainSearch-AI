@@ -3,6 +3,7 @@ venv/
 __pycache__/
 *.pyc
 .env
+.env.local
 data/raw/
 data/cleaned/
 vector_db/
