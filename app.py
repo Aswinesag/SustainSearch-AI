@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import chromadb
+import os
 from sentence_transformers import SentenceTransformer
 from rank_bm25 import BM25Okapi
 import re
