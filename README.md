@@ -1,3 +1,12 @@
+---
+title: SustainSearch API
+emoji: 🌱
+colorFrom: green
+colorTo: emerald
+sdk: docker
+pinned: false
+---
+
 # 🌱 SustainSearch AI
 
 > **Semantic Intelligence for Climate & Sustainability Data**
