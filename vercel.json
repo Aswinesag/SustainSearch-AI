@@ -1,0 +1,7 @@
+{
+    "framework": "nextjs",
+    "rootDirectory": "sustain-search-ui",
+    "installCommand": "npm install",
+    "buildCommand": "npm run build",
+    "outputDirectory": ".next"
+}
