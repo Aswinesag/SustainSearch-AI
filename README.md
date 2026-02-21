@@ -223,7 +223,3 @@ Once both servers are running, try these queries to compare modes:
 - `climate_headlines_sentiment.csv` — 1,025 climate & sustainability news articles scraped from global sources (BBC, Reuters, Guardian, Al Jazeera, etc.), annotated with sentiment scores from -1.0 to +1.0.
 
 ---
-
-## 📄 License
-
-MIT © SustainSearch AI
